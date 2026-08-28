@@ -2,11 +2,12 @@ import ipaddress, socket, ssl, hashlib, time, re
 import http.client
 
 FORBIDDEN_NETS = [
-    ipaddress.ip_network("169.254.169.254/32"),
+    ipaddress.ip_network("169.254.0.0/16"), # <-- FIX: couvre 169.254.1.1
     ipaddress.ip_network("127.0.0.0/8"),
     ipaddress.ip_network("10.0.0.0/8"),
     ipaddress.ip_network("172.16.0.0/12"),
     ipaddress.ip_network("192.168.0.0/16"),
+    ipaddress.ip_network("100.64.0.0/10"), # <-- FIX: CGNAT
     ipaddress.ip_network("::1/128"),
     ipaddress.ip_network("fc00::/7"),
     ipaddress.ip_network("fe80::/10"),
@@ -21,8 +22,12 @@ def _is_forbidden(ip):
     ip = _canon(ip)
     return any(ip in net for net in FORBIDDEN_NETS)
 
+def _is_global(ip):
+    ip = _canon(ip)
+    return ip.is_global
+
 def _normalize_url(url):
-    # FIX CRITIQUE: http://::ffff:1.2.3.4/ -> http://[::ffff:1.2.3.4]/
+    # FIX: http://::ffff:1.2.3.4/ -> http://[::ffff:1.2.3.4]/
     url = re.sub(r'://::ffff:([0-9.]+)/', r'://[::ffff:\1]/', url)
     return url
 
@@ -36,7 +41,7 @@ def _parse_url(url):
     path = path or "/"
     return scheme, host, port, path
 
-def validate_zero_trust(url: str):
+def validate_meta_plus_1(url: str):
     scheme, host, port, path = _parse_url(url)
     all_ips = set()
     try:
@@ -45,16 +50,20 @@ def validate_zero_trust(url: str):
         for res in socket.getaddrinfo(host, None):
             all_ips.add(ipaddress.ip_address(res[4][0]))
 
+    # CASCADE IP: Test toutes les IPs. Si 1 est interdite = BLOCK
     for ip in all_ips:
-        if _is_forbidden(_canon(ip)):
+        if _is_forbidden(ip):
             return False, [], f"IP interdite: {_canon(ip)}"
+        if not _is_global(ip):
+            return False, [], f"IP non-globale: {_canon(ip)}"
+            
     return True, list(all_ips), "OK"
 
 def zero_trust_get(url: str, timeout: int = 10):
     scheme, host, port, path = _parse_url(url)
-    is_allowed, pinned_ips, reason = validate_zero_trust(url)
+    is_allowed, pinned_ips, reason = validate_meta_plus_1(url)
     if not is_allowed: raise ConnectionRefusedError(f"BLOCK: {reason}")
-    ip_to_pin = pinned_ips[0]
+    ip_to_pin = pinned_ips[0] # Pinning mono-IP pour anti-TOCTOU
 
     sock = socket.create_connection((str(ip_to_pin), port), timeout=timeout)
     if scheme == "https":
@@ -72,11 +81,14 @@ def zero_trust_get(url: str, timeout: int = 10):
     return resp.status, body
 
 if __name__ == "__main__":
-    tests = [
-        "http://169.254.169.254/",
-        "http://::ffff:169.254.169.254/", # <-- Maintenant auto-corrigé en [::ffff:]
-        "http://[2001:db8::1]/",
-        "https://www.google.com/"
+    tests = [ # <-- LES 7 CAS
+        "http://169.254.169.254/", # IMDS AWS
+        "http://169.254.1.1/", # Bypass Link-local
+        "http://100.64.0.1/", # Bypass CGNAT
+        "http://::ffff:169.254.169.254/", # Bypass IPv4-mapped
+        "http://[2001:db8::1]/", # Bypass Doc IPv6
+        "http://127.0.0.1/", # Bypass Loopback
+        "https://www.google.com/" # OK
     ]
     for t in tests:
         try:
