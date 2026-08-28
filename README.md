@@ -1,22 +1,22 @@
 # NetSecurePro IA LAB - v1.0.1
-## Protocole "Méta + 1" : Validation Réseau Augmentée pour RAG Zero-Trust
+## Protocole "Meta + 1": Validation Reseau Augmentee Zero-Dependency
 
-Auteur : Mohammed Ilyes Zoubirou - NetSecurePro IA - Montréal
-Contexte : LABO d'étude sur le vecteur SSRF IPv4-Mapped IPv6 dans Azure AI Search
+**Auteur**: Mohammed Ilyes Zoubirou - NetSecurePro IA - Montreal
 
-### Le Problème : Niveau "Méta"
-Bloquer `169.254.169.254` avec une regex échoue face à :
-`::ffff:169.254.169.254`, `0xA9FEA9FE`, `2852039166`
+### Le Probleme: Niveau "Meta"
+Les validateurs par regex echouent face a: `::ffff:169.254.169.254`, `0xA9FEA9FE`
 
-### La Solution : Niveau "Méta + 1"
-Canonisation + Résolution + Attestation + Pinning
-1. **Parser** : `urllib.parse.urlsplit` pour gérer IPv6
-2. **Canoniser** : Déballer `::ffff:1.2.3.4` -> `1.2.3.4`
-3. **Résoudre** : `socket.getaddrinfo` v4+v6 AVANT décision. Anti DNS Rebinding
-4. **Vérifier** : Toutes les IP contre RFC1918, Link-Local, etc.
-5. **Attester** : Signature SHA-256 + Ed25519 pour AuditVault
-6. **Pinner** : Forcer `socket.connect()` sur l'IP validée. Anti TOCTOU
+### La Solution: Niveau "Meta + 1"
+`Canonisation + Resolution + Attestation + Pinning`
+1. **Parser**: `urlsplit` pour gerer IPv6
+2. **Canoniser**: Deballer `::ffff:1.2.3.4` -> `1.2.3.4`
+3. **Resoudre**: `socket.getaddrinfo` v4+v6 AVANT decision. Anti DNS Rebinding
+4. **Verifier**: Toutes les IP contre RFC1918, Link-Local, etc.
+5. **Attester**: Signature SHA-256 pour AuditVault
+6. **Pinner**: Forcer `socket.connect()` sur l'IP validee. Anti TOCTOU
 
 ### Installation
+Zero dependance. Python 3.8+ uniquement.
+
 ```bash
-pip install requests cryptography
+python demo/test_ssrf.py
