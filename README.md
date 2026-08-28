@@ -47,7 +47,6 @@ tests = [
     "http://[2001:db8::1]/",            # BLOCK — plage documentation IPv6
     "http://100.64.0.1/",               # BLOCK — CGNAT partagé
     "http://127.0.0.1/",                # BLOCK — loopback
-
     "https://www.google.com/",          # ALLOW — TLS + SNI valides
 ]
 ```
