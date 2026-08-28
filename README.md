@@ -1,22 +1,22 @@
-# NetSecurePro IA LAB - v1.0.1
-## Protocole "Meta + 1": Validation Reseau Augmentee Zero-Dependency
+# NetSecurePro IA Lab - Validateur SSRF Niveau META+1 v1.0.3
 
-**Auteur**: Mohammed Ilyes Zoubirou - NetSecurePro IA - Montreal
+Validateur Zero-Trust SSRF 100% Python STDLIB. Conçu et testé sur Termux Android.
 
-### Le Probleme: Niveau "Meta"
-Les validateurs par regex echouent face a: `::ffff:169.254.169.254`, `0xA9FEA9FE`
+## Problème
+La plupart des validateurs SSRF se font bypass par:
+1.  `169.254.169.254` - IMDS AWS/GCP
+2.  `169.254.1.1` - Autre IP Link-Local
+3.  `100.64.0.1` - CGNAT Carrier-Grade NAT  
+4.  `::ffff:169.254.169.254` - IPv4-mapped IPv6
+5.  DNS Rebinding / TOCTOU
 
-### La Solution: Niveau "Meta + 1"
-`Canonisation + Resolution + Attestation + Pinning`
-1. **Parser**: `urlsplit` pour gerer IPv6
-2. **Canoniser**: Deballer `::ffff:1.2.3.4` -> `1.2.3.4`
-3. **Resoudre**: `socket.getaddrinfo` v4+v6 AVANT decision. Anti DNS Rebinding
-4. **Verifier**: Toutes les IP contre RFC1918, Link-Local, etc.
-5. **Attester**: Signature SHA-256 pour AuditVault
-6. **Pinner**: Forcer `socket.connect()` sur l'IP validee. Anti TOCTOU
+## Solution: META+1
+1.  **Canonisation**: `::ffff:1.2.3.4` -> `1.2.3.4`
+2.  **Résolution**: `socket.getaddrinfo` pour choper v4 + v6
+3.  **Cascade IP**: Si 1 IP sur N est interdite = BLOCK total. Anti-DNS Rebinding.
+4.  **Filtrage**: Bloque RFC1918, Link-Local, CGNAT, Loopback, ULA, Multicast
+5.  **Globalité**: `ip.is_global` pour bloquer `2001:db8::1` et autres IPs de doc
+6.  **Pinning**: Connexion TCP directe à l'IP validée. Pas de re-lookup.
+7.  **TLS Correct**: SNI = hostname, pas l'IP. Evite `CERTIFICATE_VERIFY_FAILED`
 
-### Installation
-Zero dependance. Python 3.8+ uniquement.
-
-```bash
-python demo/test_ssrf.py
+## Testé sur Termux Android
